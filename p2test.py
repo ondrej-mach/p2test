@@ -7,6 +7,7 @@
 import os
 import sys
 from enum import Enum
+from time import perf_counter
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -15,6 +16,10 @@ class Arguments:
         self.TE = TE
         self.TR = TR
 
+
+class Environment:
+    def __init__(self):
+        self.state = self.State.NOT_STARTED
 
 class Santa:
     class State(Enum):
@@ -75,7 +80,7 @@ class Elf:
         AWAITING_HELP = 2
         ON_VACATION = 3
 
-    def __init__(self, ID=0):
+    def __init__(self, santa, ID=0):
         self.state = self.State.NOT_STARTED
         self.ID = ID
 
@@ -191,9 +196,10 @@ def runSubject(args):
 
 def analyzeFile(file, args):
     lc = LineCounter()
-    santa = Santa()
-    elves = [Elf(ID=i+1) for i in range(args.NE)]
-    rds = [Reindeer(ID=i+1) for i in range(args.NR)]
+    env = Environment()
+    santa = Santa(env)
+    elves = [Elf(env, ID=i+1) for i in range(args.NE)]
+    rds = [Reindeer(env, ID=i+1) for i in range(args.NR)]
 
     for line in file.readlines():
         lineList = line.split(':')
@@ -224,35 +230,55 @@ def analyzeFile(file, args):
 
     # After all lines are read
     try:
-        del santa
+        santa.end()
     except:
         raise
 
     for elf, ID in enumerate(elves):
         try:
-            del elf
+            elf.end()
         except:
             print(f'Elf {ID} ended in wrong state')
             raise
 
     for rd, ID in enumerate(rds):
         try:
-            del rd
+            rd.end()
         except:
             print(f'Reindeer {ID} ended in wrong state')
             raise
 
+class Timer:
+    def __init__(self, timeToRun=30, interval=5):
+        self.printInterval = interval
+        self.timeToRun = timeToRun
+        self.startTime = perf_counter()
+        self.lastStatusTime = self.startTime
+
+    def programRunning(self):
+        return perf_counter() < self.startTime + self.timeToRun
+
+
+    def printStatus(self, numTest):
+        if perf_counter() > self.lastStatusTime + self.printInterval:
+            print(f'Current status: \t{numTest} test have been run')
+            self.lastStatusTime = perf_counter()
 
 
 def main():
-    args = Arguments(50, 5, 0, 500)
+    timer = Timer()
+    args = Arguments(5, 5, 500, 500)
+    testNumber = 0
 
     try:
-        while True:
+        while timer.programRunning():
             runSubject(args)
 
             with open('proj2.out', 'r') as file:
                 analyzeFile(file, args)
+
+            timer.printStatus(testNumber)
+            testNumber += 1
 
     except Exception:
         print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
