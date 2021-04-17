@@ -299,10 +299,13 @@ class Controller:
 
 def main():
     cont = Controller()
-    args = Arguments(30, 5, 0, 50)
-    testNumber = 0
+    # change these in order to test with different settings
+    args = Arguments(20, 5, 0, 50)
+    # comment this line if you want to see the python exception
+    sys.stderr = open('/dev/null', 'w')
 
     try:
+        testNumber = 0 # only for logging
         while cont.programRunning():
             runSubject(args)
 
@@ -312,22 +315,12 @@ def main():
             cont.printStatus(testNumber)
             testNumber += 1
 
-    except Exception:
+    except:
         print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
-        with open('exception.log', 'w') as outFile:
-            outFile.write(Exception)
         return 1
 
     print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
     return 0
 
 if __name__ == '__main__':
-    with contextlib.redirect_stderr(None):
-        sys.exit(main())
-
-
-
-
-
-
-
+    sys.exit(main())
