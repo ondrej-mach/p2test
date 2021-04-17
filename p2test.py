@@ -8,6 +8,7 @@ import os
 import sys
 from enum import Enum
 from time import perf_counter
+import contextlib
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -15,11 +16,6 @@ class Arguments:
         self.NR = NR
         self.TE = TE
         self.TR = TR
-
-
-class Environment:
-    def __init__(self):
-        self.state = self.State.NOT_STARTED
 
 class Santa:
     class State(Enum):
@@ -32,47 +28,6 @@ class Santa:
     def __init__(self):
         self.state = self.State.NOT_STARTED
 
-    def end(self):
-        if self.state != self.State.GONE:
-            print(f'Santa ended in state {self.state}')
-            raise
-
-    def read(self, text):
-        if self.state == self.State.NOT_STARTED:
-            if text == 'going to sleep':
-                self.state = self.State.SLEEPING
-            else:
-                print(f'Santa in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.SLEEPING:
-            if text == 'helping elves':
-                self.state = self.State.HELPING_ELVES
-            elif text == 'closing workshop':
-                self.state = self.State.HITCHING_RDS
-            else:
-                print(f'Santa in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.HELPING_ELVES:
-            if text == 'going to sleep':
-                self.state = self.State.SLEEPING
-            else:
-                print(f'Santa in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.HITCHING_RDS:
-            if text == 'Christmas started':
-                self.state = self.State.GONE
-            else:
-                print(f'Santa in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.GONE:
-            print(f'Santa in state {self.state} cannot do {text}')
-            raise
-
-
 class Elf:
     class State(Enum):
         NOT_STARTED = 0
@@ -80,45 +35,9 @@ class Elf:
         AWAITING_HELP = 2
         ON_VACATION = 3
 
-    def __init__(self, santa, ID=0):
+    def __init__(self, ID=0):
         self.state = self.State.NOT_STARTED
         self.ID = ID
-
-    def end(self):
-        if self.state != self.State.ON_VACATION:
-            print(f'Elf {self.ID} ended in state {self.state}')
-            raise
-
-    def read(self, text):
-        if self.state == self.State.NOT_STARTED:
-            if text == 'started':
-                self.state = self.State.WORKING_ALONE
-            else:
-                print(f'Elf in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.WORKING_ALONE:
-            if text == 'need help':
-                self.state = self.State.AWAITING_HELP
-            elif text == 'taking holidays':
-                self.state = self.State.ON_VACATION
-            else:
-                print(f'Elf in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.AWAITING_HELP:
-            if text == 'get help':
-                self.state = self.State.WORKING_ALONE
-            elif text == 'taking holidays':
-                self.state = self.State.ON_VACATION
-            else:
-                print(f'Elf in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.ON_VACATION:
-            print(f'Elf in state {self.state} cannot do {text}')
-            raise
-
 
 class Reindeer:
     class State(Enum):
@@ -131,38 +50,6 @@ class Reindeer:
         self.state = self.State.NOT_STARTED
         self.ID = ID
 
-    def end(self):
-        if self.state != self.State.HITCHED:
-            print(f'Reindeer {self.ID} ended in state {self.state}')
-            raise
-
-    def read(self, text):
-        if self.state == self.State.NOT_STARTED:
-            if text == 'rstarted':
-                self.state = self.State.ON_VACATION
-            else:
-                print(f'Reindeer in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.ON_VACATION:
-            if text == 'return home':
-                self.state = self.State.BACK_HOME
-            else:
-                print(f'Reindeer in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.BACK_HOME:
-            if text == 'get hitched':
-                self.state = self.State.HITCHED
-            else:
-                print(f'Reindeer in state {self.state} cannot do {text}')
-                raise
-
-        elif self.state == self.State.HITCHED:
-            print(f'Reindeer in state {self.state} cannot do {text}')
-            raise
-
-
 class LineCounter:
     def __init__(self):
         self.expectedNumber = 1
@@ -174,6 +61,192 @@ class LineCounter:
             raise
 
         self.expectedNumber += 1
+
+
+class Environment:
+    def __init__(self, args):
+        self.lineCounter = LineCounter()
+        self.santa = Santa()
+        self.elves = [Elf(ID=i+1) for i in range(args.NE)]
+        self.rds = [Reindeer(ID=i+1) for i in range(args.NR)]
+
+        # shared variables for checking
+        self.args = args
+        self.numElvesToHelp = 0
+        self.reindeersHome = 0
+        self.workshopOpen = True
+
+    def end(self):
+        # After all lines are read
+        try:
+            self.santaEnd(self.santa)
+        except:
+            raise
+
+        for ID, elf in enumerate(self.elves):
+            try:
+                self.elfEnd(elf)
+            except:
+                print(f'Elf {ID} ended in wrong state')
+                raise
+
+        for ID, rd in enumerate(self.rds):
+            try:
+                self.rdEnd(rd)
+            except:
+                print(f'Reindeer {ID} ended in wrong state')
+                raise
+
+    def readLine(self, line):
+        lineList = line.split(':')
+        lineNum, actor, action = [item.strip() for item in lineList]
+
+        self.lineCounter.read(lineNum)
+
+        if actor == 'Santa':
+            self.santaRead(self.santa, action)
+
+        elif actor.startswith('Elf'):
+            ID = int(actor.split()[1])
+            self.elfRead(self.elves[ID-1], action)
+
+        elif actor.startswith('RD'):
+            ID = int(actor.split()[1])
+            self.rdRead(self.rds[ID-1], action)
+
+        else:
+            print(f'Wrong actor identifier: {actor}')
+            raise
+
+    def santaEnd(self, santa):
+        if santa.state != Santa.State.GONE:
+            print(f'Santa ended in state {santa.state}')
+            raise
+
+    def santaRead(self, santa, text):
+        if santa.state == Santa.State.NOT_STARTED:
+            if text == 'going to sleep':
+                if self.numElvesToHelp != 0:
+                    print(f'There are still {self.numElvesToHelp} elves in workshop, that didn\'t get help')
+                    raise
+                santa.state = Santa.State.SLEEPING
+            else:
+                print(f'Santa in state {santa.state} cannot do {text}')
+                raise
+
+        elif santa.state == Santa.State.SLEEPING:
+            if text == 'helping elves':
+                if self.numElvesToHelp != 0:
+                    print('Santa did not yet help all the elves in previous helping cycle (or helped more than 3)')
+                    raise
+                if self.reindeersHome == self.args.NR:
+                    print('Santa cannot help elves, when all reindeers are home')
+                    raise
+                self.numElvesToHelp = 3
+                santa.state = Santa.State.HELPING_ELVES
+            elif text == 'closing workshop':
+                santa.state = Santa.State.HITCHING_RDS
+                self.workshopOpen = False
+            else:
+                print(f'Santa in state {santa.state} cannot do {text}')
+                raise
+
+        elif santa.state == Santa.State.HELPING_ELVES:
+            if text == 'going to sleep':
+                santa.state = Santa.State.SLEEPING
+            else:
+                print(f'Santa in state {santa.state} cannot do {text}')
+                raise
+
+        elif santa.state == Santa.State.HITCHING_RDS:
+            if text == 'Christmas started':
+                santa.state = Santa.State.GONE
+            else:
+                print(f'Santa in state {santa.state} cannot do {text}')
+                raise
+
+        elif santa.state == Santa.State.GONE:
+            print(f'Santa in state {santa.state} cannot do {text}')
+            raise
+
+
+    def elfEnd(self, elf):
+        if elf.state != Elf.State.ON_VACATION:
+            print(f'Elf {elf.ID} ended in state {elf.state}')
+            raise
+
+    def elfRead(self, elf, text):
+        if elf.state == Elf.State.NOT_STARTED:
+            if text == 'started':
+                elf.state = Elf.State.WORKING_ALONE
+            else:
+                print(f'Elf in state {elf.state} cannot do {text}')
+                raise
+
+        elif elf.state == Elf.State.WORKING_ALONE:
+            if text == 'need help':
+                elf.state = Elf.State.AWAITING_HELP
+            elif text == 'taking holidays':
+                elf.state = Elf.State.ON_VACATION
+            else:
+                print(f'Elf in state {elf.state} cannot do {text}')
+                raise
+
+        elif elf.state == Elf.State.AWAITING_HELP:
+            if text == 'get help':
+                if not self.workshopOpen:
+                    print('Elf cannot get help after the workshop is closed')
+                    raise
+
+                self.numElvesToHelp -= 1
+                elf.state = Elf.State.WORKING_ALONE
+            elif text == 'taking holidays':
+                elf.state = Elf.State.ON_VACATION
+            else:
+                print(f'Elf in state {elf.state} cannot do {text}')
+                raise
+
+        elif elf.state == Elf.State.ON_VACATION:
+            print(f'Elf in state {elf.state} cannot do {text}')
+            raise
+
+
+
+    def rdEnd(self, rd):
+        if rd.state != Reindeer.State.HITCHED:
+            print(f'Reindeer {rd.ID} ended in state {rd.state}')
+            raise
+
+    def rdRead(self, rd, text):
+        if rd.state == Reindeer.State.NOT_STARTED:
+            if text == 'rstarted':
+                rd.state = Reindeer.State.ON_VACATION
+            else:
+                print(f'Reindeer in state {rd.state} cannot do {text}')
+                raise
+
+        elif rd.state == Reindeer.State.ON_VACATION:
+            if text == 'return home':
+                self.reindeersHome += 1
+                rd.state = Reindeer.State.BACK_HOME
+            else:
+                print(f'Reindeer in state {rd.state} cannot do {text}')
+                raise
+
+        elif rd.state == Reindeer.State.BACK_HOME:
+            if text == 'get hitched':
+                if self.workshopOpen:
+                    print('Workshop must be closed, when a reindeer gets hitched')
+                    raise
+                rd.state = Reindeer.State.HITCHED
+            else:
+                print(f'Reindeer in state {rd.state} cannot do {text}')
+                raise
+
+        elif rd.state == Reindeer.State.HITCHED:
+            print(f'Reindeer in state {rd.state} cannot do {text}')
+            raise
+
 
 # things used for formatting
 class fmt:
@@ -195,60 +268,19 @@ def runSubject(args):
 
 
 def analyzeFile(file, args):
-    lc = LineCounter()
-    env = Environment()
-    santa = Santa(env)
-    elves = [Elf(env, ID=i+1) for i in range(args.NE)]
-    rds = [Reindeer(env, ID=i+1) for i in range(args.NR)]
+    # initialize the test environment with all the creattures
+    env = Environment(args)
 
-    for line in file.readlines():
-        lineList = line.split(':')
-        lineNum, actor, action = [item.strip() for item in lineList]
-
+    for lineNumber, line in enumerate(file.readlines()):
         try:
-            lc.read(lineNum)
-
-            if actor == 'Santa':
-                santa.read(action)
-
-            elif actor.startswith('Elf'):
-                elfID = int(actor.split()[1])
-                elves[elfID - 1].read(action)
-
-            elif actor.startswith('RD'):
-                rdID = int(actor.split()[1])
-                rds[rdID - 1].read(action)
-
-            else:
-                print(f'Wrong actor identifier: {actor}')
-                raise
-
+            env.readLine(line)
         except:
-            print(f'Illegal operation on line {lineNum}:')
+            print(f'Illegal operation on line {lineNumber}:')
             print(line)
             raise
 
-    # After all lines are read
-    try:
-        santa.end()
-    except:
-        raise
 
-    for elf, ID in enumerate(elves):
-        try:
-            elf.end()
-        except:
-            print(f'Elf {ID} ended in wrong state')
-            raise
-
-    for rd, ID in enumerate(rds):
-        try:
-            rd.end()
-        except:
-            print(f'Reindeer {ID} ended in wrong state')
-            raise
-
-class Timer:
+class Controller:
     def __init__(self, timeToRun=30, interval=5):
         self.printInterval = interval
         self.timeToRun = timeToRun
@@ -261,23 +293,23 @@ class Timer:
 
     def printStatus(self, numTest):
         if perf_counter() > self.lastStatusTime + self.printInterval:
-            print(f'Current status: \t{numTest} test have been run')
+            print(f'Current status: {numTest} tests have been run')
             self.lastStatusTime = perf_counter()
 
 
 def main():
-    timer = Timer()
-    args = Arguments(5, 5, 500, 500)
+    cont = Controller()
+    args = Arguments(30, 5, 0, 50)
     testNumber = 0
 
     try:
-        while timer.programRunning():
+        while cont.programRunning():
             runSubject(args)
 
             with open('proj2.out', 'r') as file:
                 analyzeFile(file, args)
 
-            timer.printStatus(testNumber)
+            cont.printStatus(testNumber)
             testNumber += 1
 
     except Exception:
@@ -290,7 +322,8 @@ def main():
     return 0
 
 if __name__ == '__main__':
-    sys.exit(main())
+    with contextlib.redirect_stderr(None):
+        sys.exit(main())
 
 
 
