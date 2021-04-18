@@ -8,7 +8,6 @@ import os
 import sys
 from enum import Enum
 from time import perf_counter
-import contextlib
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -145,14 +144,20 @@ class Environment:
                 self.numElvesToHelp = 3
                 santa.state = Santa.State.HELPING_ELVES
             elif text == 'closing workshop':
-                santa.state = Santa.State.HITCHING_RDS
+                if self.reindeersHome != self.args.NR:
+                    print('Santa is closing workshop before all reindeers are home')
+                    raise
                 self.workshopOpen = False
+                santa.state = Santa.State.HITCHING_RDS
             else:
                 print(f'Santa in state {santa.state} cannot do {text}')
                 raise
 
         elif santa.state == Santa.State.HELPING_ELVES:
             if text == 'going to sleep':
+                if self.numElvesToHelp != 0:
+                    print(f'Santa went to sleep, he still has {self.numElvesToHelp} elves in his workshop')
+                    raise
                 santa.state = Santa.State.SLEEPING
             else:
                 print(f'Santa in state {santa.state} cannot do {text}')
@@ -186,8 +191,6 @@ class Environment:
         elif elf.state == Elf.State.WORKING_ALONE:
             if text == 'need help':
                 elf.state = Elf.State.AWAITING_HELP
-            elif text == 'taking holidays':
-                elf.state = Elf.State.ON_VACATION
             else:
                 print(f'Elf in state {elf.state} cannot do {text}')
                 raise
@@ -201,6 +204,9 @@ class Environment:
                 self.numElvesToHelp -= 1
                 elf.state = Elf.State.WORKING_ALONE
             elif text == 'taking holidays':
+                if self.workshopOpen:
+                    print('Elf cannot go on vacation before the workshop closes')
+                    raise
                 elf.state = Elf.State.ON_VACATION
             else:
                 print(f'Elf in state {elf.state} cannot do {text}')
