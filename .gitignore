@@ -3,3 +3,4 @@ Makefile
 exception.log
 err.log
 .idea
+*.zip

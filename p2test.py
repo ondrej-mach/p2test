@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/python3
 
 # Tests for project 2 from IOS course
 # Author: Ondrej Mach
@@ -350,4 +350,3 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
-
