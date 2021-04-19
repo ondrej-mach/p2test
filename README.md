@@ -9,7 +9,6 @@ You simply place the script into the same repository as your project.
 or
 ```./python3 p2test```
 
-
 If your executable hangs up or doesn't want to run, try running it with these arguments.
 These are the defults used by test.
 ```
@@ -19,12 +18,14 @@ These are the defults used by test.
 ### Limitations
 What you have to test yourself:
 ```
-correct limits of arguments
-correct memory deallocation
+limits of arguments
+memory deallocation
+random time generators
 ```
 
 The test uses finite state machines to test each entity.
 It is still in development and a lot of functionality is missing.
-
 Test runs for 30 seconds by default and does not yet have a simple way to change this behavior.
+
+If you find any error, that is not detected, please contact me.
 
