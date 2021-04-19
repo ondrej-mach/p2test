@@ -294,8 +294,7 @@ def analyzeFile(file, args):
 
 
 class Controller:
-    def __init__(self, testedArguments=[Arguments(20, 5, 0, 50)], timeToRun=30, interval=5):
-        self.printInterval = interval
+    def __init__(self, testedArguments=[Arguments(20, 5, 0, 50)], timeToRun=30):
         self.timeToRun = timeToRun
         self.startTime = perf_counter()
         self.testsRun = 0
@@ -323,12 +322,30 @@ def main():
     # list of arguments, that will be tested
     testedArguments = [
         Arguments(20, 5, 0, 50),
-        Arguments(999, 19, 0, 0),
-        Arguments(100, 10, 10, 200),
+        Arguments(3, 5, 0, 0),
         Arguments(10, 10, 10, 10),
         Arguments(5, 4, 100, 100),
-        Arguments(1, 1, 50, 50),
+        Arguments(3, 5, 0, 0),
+        Arguments(2, 1, 0, 10)
     ]
+
+    opts = sys.argv[1:]
+
+    for opt in opts:
+        if opt == '-F' or opt == '--full':
+            testedArguments.extend([
+                Arguments(999, 19, 0, 0),
+                Arguments(100, 10, 10, 200),
+            ])
+
+        elif opt == '--help':
+            print('Usage: python3 p2test [-F | --full]')
+            return 0
+
+        else:
+            print(f'Bad option `{opt}`')
+            print('Usage: python3 p2test [--full]')
+            return 1
 
     cont = Controller(testedArguments=testedArguments)
 
