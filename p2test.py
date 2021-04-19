@@ -200,6 +200,9 @@ class Environment:
                 if not self.workshopOpen:
                     print('Elf cannot get help after the workshop is closed')
                     raise
+                if self.santa.state != Santa.State.HELPING_ELVES:
+                    print(f'Santa cannot help an elf in state {self.santa.state}')
+                    raise
 
                 self.numElvesToHelp -= 1
                 elf.state = Elf.State.WORKING_ALONE
@@ -244,6 +247,9 @@ class Environment:
                 if self.workshopOpen:
                     print('Workshop must be closed, when a reindeer gets hitched')
                     raise
+                if self.santa.state != Santa.State.HITCHING_RDS:
+                    print(f'Santa cannot hitch a reindeer in state {self.santa.state}')
+                    raise
                 rd.state = Reindeer.State.HITCHED
             else:
                 print(f'Reindeer in state {rd.state} cannot do {text}')
@@ -258,6 +264,7 @@ class Environment:
 class fmt:
     RED = '\033[0;31m'
     GREEN = '\033[0;32m'
+    YELLOW = '\033[0;33m'
     DIM = '\e[2m'
     NOCOLOR = '\033[0m'
     TICK = '\u2713'
@@ -269,7 +276,7 @@ def runSubject(args):
     ret = os.system(cmd)
 
     if ret != 0:
-        print('Subject exited with error')
+        print('The tested program returned error')
         raise
 
 
@@ -287,39 +294,52 @@ def analyzeFile(file, args):
 
 
 class Controller:
-    def __init__(self, timeToRun=30, interval=5):
+    def __init__(self, testedArguments=[Arguments(20, 5, 0, 50)], timeToRun=30, interval=5):
         self.printInterval = interval
         self.timeToRun = timeToRun
         self.startTime = perf_counter()
-        self.lastStatusTime = self.startTime
+        self.testsRun = 0
+        # list of arguments, that will be tested
+        self.testedArguments = testedArguments
+        self.args = Arguments()
 
-    def programRunning(self):
-        return perf_counter() < self.startTime + self.timeToRun
+    def nextRun(self):
+        finished_part = (perf_counter() - self.startTime) / self.timeToRun
+        if finished_part >= 1:
+            return False
 
+        index = int(finished_part * len(self.testedArguments))
 
-    def printStatus(self, numTest):
-        if perf_counter() > self.lastStatusTime + self.printInterval:
-            print(f'Current status: {numTest} tests have been run')
-            self.lastStatusTime = perf_counter()
+        if self.args != self.testedArguments[index]:
+            self.args = self.testedArguments[index]
+            print(f'Status: {int(finished_part * 100)}% done. {self.testsRun} tests have run. ' +
+                  f'Testing: ./proj2 {self.args.NE} {self.args.NR} {self.args.TE} {self.args.TR}')
+
+        self.testsRun += 1
+        return True
 
 
 def main():
-    cont = Controller()
-    # change these in order to test with different settings
-    args = Arguments(20, 5, 0, 50)
+    # list of arguments, that will be tested
+    testedArguments = [
+        Arguments(20, 5, 0, 50),
+        Arguments(999, 19, 0, 0),
+        Arguments(100, 10, 10, 200),
+        Arguments(10, 10, 10, 10),
+        Arguments(5, 4, 100, 100),
+        Arguments(1, 1, 50, 50),
+    ]
+
+    cont = Controller(testedArguments=testedArguments)
+
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
 
     try:
-        testNumber = 0 # only for logging
-        while cont.programRunning():
-            runSubject(args)
-
+        while cont.nextRun():
+            runSubject(cont.args)
             with open('proj2.out', 'r') as file:
-                analyzeFile(file, args)
-
-            cont.printStatus(testNumber)
-            testNumber += 1
+                analyzeFile(file, cont.args)
 
     except:
         print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
@@ -330,3 +350,4 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+
