@@ -287,10 +287,13 @@ def analyzeFile(file, args):
     for lineNumber, line in enumerate(file.readlines()):
         try:
             env.readLine(line)
+
         except:
             print(f'Illegal operation on line {lineNumber}:')
             print(line)
             raise
+
+    env.end()
 
 
 class Controller:
