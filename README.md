@@ -5,12 +5,18 @@ Testing script for project 2 from IOS course, VUT FIT
 You simply place the script into the same repository as your project.
 
 ### Running the script
-```./p2test.py```
-or
-```./python3 p2test```
+```
+./python3 p2test
+```
+You can also try running the test with `--full` option.
+```
+./python3 p2test --full
+```
+This adds a few test cases with more extreme arguments for your program.
+This won't work on Merlin server, because you are limited to 50 processes.
 
-If your executable hangs up or doesn't want to run, try running it with these arguments.
-These are the defults used by test.
+If your executable hangs up or doesn't want to run, try running it yourself. 
+The test shows you the arguments, that are currently tested.
 ```
 ./proj2 20 5 0 50
 ```
@@ -24,7 +30,7 @@ random time generators
 ```
 
 The test uses finite state machines to test each entity.
-It is still in development and a lot of functionality is missing.
+Most of the useful features are implemented.
 Test runs for 30 seconds by default and does not yet have a simple way to change this behavior.
 
 If you find any error, that is not detected, please contact me.
