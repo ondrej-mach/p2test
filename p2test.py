@@ -63,7 +63,7 @@ class LineCounter:
 
 
 class Environment:
-    def __init__(self, args):
+    def __init__(self, args, strict=True):
         self.lineCounter = LineCounter()
         self.santa = Santa()
         self.elves = [Elf(ID=i+1) for i in range(args.NE)]
@@ -71,9 +71,11 @@ class Environment:
 
         # shared variables for checking
         self.args = args
+        self.strict = strict
         self.numElvesToHelp = 0
         self.reindeersHome = 0
         self.workshopOpen = True
+
 
     def end(self):
         # After all lines are read
@@ -138,7 +140,7 @@ class Environment:
                 if self.numElvesToHelp != 0:
                     print('Santa did not yet help all the elves in previous helping cycle (or helped more than 3)')
                     raise
-                if self.reindeersHome == self.args.NR:
+                if self.strict and self.reindeersHome == self.args.NR:
                     print('Santa cannot help elves, when all reindeers are home')
                     raise
                 self.numElvesToHelp = 3
@@ -280,9 +282,9 @@ def runSubject(args):
         raise
 
 
-def analyzeFile(file, args):
-    # initialize the test environment with all the creattures
-    env = Environment(args)
+def analyzeFile(file, args, strict=True):
+    # initialize the test environment with all the creatures
+    env = Environment(args, strict)
 
     for lineNumber, line in enumerate(file.readlines()):
         try:
@@ -297,12 +299,15 @@ def analyzeFile(file, args):
 
 
 class Controller:
-    def __init__(self, testedArguments=[Arguments(20, 5, 0, 50)], timeToRun=30):
+    def __init__(self, testedArguments=None, timeToRun=30):
+        if testedArguments is None:
+            testedArguments = [Arguments(20, 5, 0, 50)]
+
+        self.testedArguments = testedArguments
         self.timeToRun = timeToRun
         self.startTime = perf_counter()
         self.testsRun = 0
         # list of arguments, that will be tested
-        self.testedArguments = testedArguments
         self.args = Arguments()
 
     def nextRun(self):
@@ -320,9 +325,12 @@ class Controller:
         self.testsRun += 1
         return True
 
+def printHelp():
+    print('Usage: python3 p2test [-F | --full][-t seconds][-s | --strict]')
 
 def main():
     timeToRun = 30
+    strict = False
     # list of arguments, that will be tested
     testedArguments = [
         Arguments(20, 5, 0, 50),
@@ -349,13 +357,16 @@ def main():
             optindex += 1
             timeToRun = float(opts[optindex])
 
+        elif opts[optindex] == '-s' or opts[optindex] == '--strict':
+            strict = True
+
         elif opts[optindex] == '--help':
-            print('Usage: python3 p2test [-F | --full][-t seconds]')
+            printHelp()
             return 0
 
         else:
             print(f'Bad option `{opts[optindex]}`')
-            print('Usage: python3 p2test [--full]')
+            printHelp()
             return 1
 
         optindex += 1
@@ -369,7 +380,7 @@ def main():
         while cont.nextRun():
             runSubject(cont.args)
             with open('proj2.out', 'r') as file:
-                analyzeFile(file, cont.args)
+                analyzeFile(file, cont.args, strict=strict)
 
     except:
         print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
