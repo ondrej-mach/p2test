@@ -4,6 +4,7 @@ Testing script for project 2 from IOS course, VUT FIT
 ### Installation
 You simply place the script into the same repository as your project.
 
+
 ### Running the script
 ```
 ./python3 p2test
@@ -19,6 +20,11 @@ If your executable hangs up or doesn't want to run, try running it yourself.
 The test shows you the arguments, that are currently tested.
 ```
 ./proj2 20 5 0 50
+```
+
+If you want to really make sure, that your program is completely stable, you can run the test in a loop. Please, do this only on your own computer, this might be quite demanding.
+```
+while python3 p2test.py; do; done
 ```
 
 ### Limitations
