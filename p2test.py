@@ -279,10 +279,10 @@ def runSubject(args, timeout=5):
     try:
         process.wait(timeout)
 
-    except subprocess.TimeoutExpired as e:
+    except subprocess.TimeoutExpired:
         print(f'The program took longer than {timeout} seconds and has been terminated')
         process.terminate()
-        raise e
+        raise
 
     except KeyboardInterrupt as e:
         print(f'The testing has been cancelled by the user')
