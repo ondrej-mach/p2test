@@ -4,7 +4,7 @@
 # Author: Ondrej Mach
 # Date: 17.04.2021
 
-import os
+import subprocess
 import sys
 from enum import Enum
 from time import perf_counter
@@ -81,22 +81,22 @@ class Environment:
         # After all lines are read
         try:
             self.santaEnd(self.santa)
-        except:
-            raise
+        except Exception as e:
+            raise e
 
         for ID, elf in enumerate(self.elves):
             try:
                 self.elfEnd(elf)
-            except:
+            except Exception as e:
                 print(f'Elf {ID} ended in wrong state')
-                raise
+                raise e
 
         for ID, rd in enumerate(self.rds):
             try:
                 self.rdEnd(rd)
-            except:
+            except Exception as e:
                 print(f'Reindeer {ID} ended in wrong state')
-                raise
+                raise e
 
     def readLine(self, line):
         lineList = line.split(':')
@@ -273,11 +273,23 @@ class fmt:
     CROSS = '\u2717'
 
 
-def runSubject(args):
-    cmd = f'./proj2 {args.NE} {args.NR} {args.TE} {args.TR}'
-    ret = os.system(cmd)
+def runSubject(args, timeout=5):
+    process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
 
-    if ret != 0:
+    try:
+        process.wait(timeout)
+
+    except subprocess.TimeoutExpired as e:
+        print(f'The program took longer than {timeout} seconds and has been terminated')
+        process.terminate()
+        raise e
+
+    except KeyboardInterrupt as e:
+        print(f'The testing has been cancelled by the user')
+        process.terminate()
+        raise e
+
+    if process.returncode != 0:
         print('The tested program returned error')
         raise
 
@@ -290,10 +302,10 @@ def analyzeFile(file, args, strict=True):
         try:
             env.readLine(line)
 
-        except:
+        except Exception as e:
             print(f'Illegal operation on line {lineNumber}:')
             print(line)
-            raise
+            raise e
 
     env.end()
 
@@ -326,10 +338,16 @@ class Controller:
         return True
 
 def printHelp():
-    print('Usage: python3 p2test [-F | --full][-t seconds][-s | --strict]')
+    print('Usage:\tpython3 p2test [options]\n'
+          'Options:\n'
+          '\t-t | --time\thow long the test should run\n'
+          '\t-s | --strict\thas some extra rules, that should not be necessary\n'
+          '\t-w | --wait\twait for the process to finish, even if it is stuck\n'
+          '\t--help\tprint out help\n')
 
 def main():
     timeToRun = 30
+    timeout = 5
     strict = False
     # list of arguments, that will be tested
     testedArguments = [
@@ -357,6 +375,9 @@ def main():
             optindex += 1
             timeToRun = float(opts[optindex])
 
+        elif opts[optindex] == '-w' or opts[optindex] == '--wait':
+            timeout = None
+
         elif opts[optindex] == '-s' or opts[optindex] == '--strict':
             strict = True
 
@@ -378,11 +399,15 @@ def main():
 
     try:
         while cont.nextRun():
-            runSubject(cont.args)
+            runSubject(cont.args, timeout)
             with open('proj2.out', 'r') as file:
                 analyzeFile(file, cont.args, strict=strict)
 
-    except:
+    except KeyboardInterrupt:
+        print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
+        return 1
+
+    except Exception:
         print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
         return 1
 
