@@ -322,6 +322,7 @@ class Controller:
 
 
 def main():
+    timeToRun = 30
     # list of arguments, that will be tested
     testedArguments = [
         Arguments(20, 5, 0, 50),
@@ -334,23 +335,32 @@ def main():
 
     opts = sys.argv[1:]
 
-    for opt in opts:
-        if opt == '-F' or opt == '--full':
+    optindex = 0
+    while optindex < len(opts):
+        if opts[optindex] == '-F' or opts[optindex] == '--full':
             testedArguments.extend([
                 Arguments(999, 19, 0, 0),
                 Arguments(100, 10, 10, 200),
+                Arguments(999, 1, 0, 10),
+                Arguments(2, 19, 0, 100),
             ])
 
-        elif opt == '--help':
-            print('Usage: python3 p2test [-F | --full]')
+        elif opts[optindex] == '-t' or opts[optindex] == '--time':
+            optindex += 1
+            timeToRun = float(opts[optindex])
+
+        elif opts[optindex] == '--help':
+            print('Usage: python3 p2test [-F | --full][-t seconds]')
             return 0
 
         else:
-            print(f'Bad option `{opt}`')
+            print(f'Bad option `{opts[optindex]}`')
             print('Usage: python3 p2test [--full]')
             return 1
 
-    cont = Controller(testedArguments=testedArguments)
+        optindex += 1
+
+    cont = Controller(testedArguments=testedArguments, timeToRun=timeToRun)
 
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
