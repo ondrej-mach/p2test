@@ -343,6 +343,7 @@ def printHelp():
           '\t-t | --time\thow long the test should run\n'
           '\t-s | --strict\thas some extra rules, that should not be necessary\n'
           '\t-w | --wait\twait for the process to finish, even if it is stuck\n'
+          '\t-F | --full\tadds a few test cases with more extreme arguments\n'
           '\t--help\tprint out help\n')
 
 def main():
