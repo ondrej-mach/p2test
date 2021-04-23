@@ -7,11 +7,11 @@ You simply place the script into the same repository as your project.
 
 ### Running the script
 ```
-./python3 p2test
+python3 p2test
 ```
 You can also try running the test with `--full` option.
 ```
-./python3 p2test --full
+python3 p2test --full
 ```
 This adds a few test cases with more extreme arguments for your program.
 This won't work on Merlin server, because you are limited to 50 processes.
@@ -25,7 +25,12 @@ The test shows you the arguments, that are currently tested.
 If you want to do more extensive testing, you can use ```-t``` or ```--time``` in seconds.
 Please, do this only on your own computer, this might be quite demanding.
 ```
-./python3 p2test -t 120
+python3 p2test -t 120
+```
+
+If you want strictly no call of Santa helping elves after all reindeers are home then you can use ```-s``` or ```--strict```
+```
+python3 p2test -s
 ```
 
 ### Limitations
