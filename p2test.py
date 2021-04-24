@@ -84,18 +84,18 @@ class Environment:
         except Exception as e:
             raise e
 
-        for ID, elf in enumerate(self.elves):
+        for elf in self.elves:
             try:
                 self.elfEnd(elf)
             except Exception as e:
-                print(f'Elf {ID} ended in wrong state')
+                print(f'Elf {elf.ID} ended in wrong state')
                 raise e
 
-        for ID, rd in enumerate(self.rds):
+        for rd in self.rds:
             try:
                 self.rdEnd(rd)
             except Exception as e:
-                print(f'Reindeer {ID} ended in wrong state')
+                print(f'Reindeer {rd.ID} ended in wrong state')
                 raise e
 
     def readLine(self, line):
