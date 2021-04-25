@@ -356,7 +356,7 @@ def main():
         Arguments(3, 5, 0, 0),
         Arguments(10, 10, 10, 10),
         Arguments(5, 4, 100, 100),
-        Arguments(3, 5, 0, 0),
+        Arguments(8, 2, 50, 0),
         Arguments(2, 1, 0, 10)
     ]
 
