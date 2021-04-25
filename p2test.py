@@ -368,6 +368,7 @@ def main():
             testedArguments.extend([
                 Arguments(999, 19, 0, 0),
                 Arguments(100, 10, 10, 200),
+                Arguments(80, 15, 100, 0),
                 Arguments(999, 1, 0, 10),
                 Arguments(2, 19, 0, 100),
             ])
