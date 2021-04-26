@@ -8,6 +8,7 @@ import subprocess
 import sys
 from enum import Enum
 from time import perf_counter
+from typing import Union
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -273,7 +274,7 @@ class fmt:
     CROSS = '\u2717'
 
 
-def runSubject(args, timeout=5):
+def runSubject(args, timeout:Union[None, float]=5):
     process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
 
     try:
@@ -340,15 +341,15 @@ class Controller:
 def printHelp():
     print('Usage:\tpython3 p2test [options]\n'
           'Options:\n'
-          '\t-t | --time\thow long the test should run\n'
-          '\t-s | --strict\thas some extra rules, that should not be necessary\n'
-          '\t-w | --wait\twait for the process to finish, even if it is stuck\n'
-          '\t-F | --full\tadds a few test cases with more extreme arguments\n'
+          '\t-t  | --time\thow long the test should run\n'
+          '\t-s  | --strict\thas some extra rules, that should not be necessary\n'
+          '\t-to | --timeout\tset timeout in seconds for detecting deadlock (default: None - no timeout)\n'
+          '\t-F  | --full\tadds a few test cases with more extreme arguments\n'
           '\t--help\tprint out help\n')
 
 def main():
     timeToRun = 30
-    timeout = 5
+    timeout = None
     strict = False
     # list of arguments, that will be tested
     testedArguments = [
@@ -377,8 +378,9 @@ def main():
             optindex += 1
             timeToRun = float(opts[optindex])
 
-        elif opts[optindex] == '-w' or opts[optindex] == '--wait':
-            timeout = None
+        elif opts[optindex] == '-to' or opts[optindex] == '--timeout':
+            optindex += 1
+            timeout = float(opts[optindex])
 
         elif opts[optindex] == '-s' or opts[optindex] == '--strict':
             strict = True
