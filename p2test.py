@@ -345,7 +345,7 @@ def main():
                         help="how long the test should run in seconds (default: 30)")
     parser.add_argument("-s", "--strict", action="store_true",
                         help="add some extra rules, that should not be necessary")
-    parser.add_argument("-to", "--timeout", type=float, default=None,
+    parser.add_argument("-T", "--timeout", type=float, default=None,
                         help="set timeout in seconds for detecting deadlock (default: None - no timeout)")
     parser.add_argument("-F", "--full", action="store_true", help="adds a few test cases with more extreme arguments")
 

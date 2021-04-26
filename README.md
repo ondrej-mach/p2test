@@ -33,10 +33,10 @@ If you want strictly no call of Santa helping elves after all reindeers are home
 python3 p2test -s
 ```
 
-If you want to test if your program have any deadlocks then specify timeout time in seconds ```-to``` or ```--timeout```
+If you want to test if your program have any deadlocks then specify timeout time in seconds ```-T``` or ```--timeout```
 In default tester will wait for program exit without any timeout.
 ```
-python3 p2test -to 10
+python3 p2test -T 10
 ```
 
 More info about parameter of tester with flag ```-h``` or ```--help```
