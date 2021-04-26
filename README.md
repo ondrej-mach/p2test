@@ -33,6 +33,13 @@ If you want strictly no call of Santa helping elves after all reindeers are home
 python3 p2test -s
 ```
 
+### My tests fail
+Here are some of the most common mistakes, that people often make:
+- The project outputs to stdout. The tester can read only from file proj2.out, ignores everything else.
+
+- The main process exits before all of its children have finished. This bug can manifest in weird ways, highly dependent on setup. For example, the test can finish analyzing file before the last elf goes on vacation.
+
+
 ### Limitations
 What you have to test yourself:
 ```
