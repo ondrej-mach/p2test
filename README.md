@@ -39,6 +39,8 @@ In default tester will wait for program exit without any timeout.
 python3 p2test -to 10
 ```
 
+More info about parameter of tester with flag ```-h``` or ```--help```
+
 ### My tests fail
 Here are some of the most common mistakes, that people often make:
 - The project outputs to stdout. The tester can read only from file proj2.out, ignores everything else.
