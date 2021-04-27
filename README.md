@@ -39,6 +39,11 @@ In default tester will wait for program exit without any timeout.
 python3 p2test -T 10
 ```
 
+If you want to run infinite test and really want to test stability (no deadlocks) of your program user ```-i``` or ```--infinite``` in combination with  timeout flag
+```
+python3 p2test -T 10 -i
+```
+
 More info about parameter of tester with flag ```-h``` or ```--help```
 
 ### My tests fail
