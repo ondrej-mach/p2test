@@ -8,6 +8,8 @@ import subprocess
 import sys
 from enum import Enum
 from time import perf_counter
+from typing import Union
+import argparse
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -273,7 +275,7 @@ class fmt:
     CROSS = '\u2717'
 
 
-def runSubject(args, timeout=5):
+def runSubject(args, timeout:Union[None, float]=5):
     process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
 
     try:
@@ -337,19 +339,18 @@ class Controller:
         self.testsRun += 1
         return True
 
-def printHelp():
-    print('Usage:\tpython3 p2test [options]\n'
-          'Options:\n'
-          '\t-t | --time\thow long the test should run\n'
-          '\t-s | --strict\thas some extra rules, that should not be necessary\n'
-          '\t-w | --wait\twait for the process to finish, even if it is stuck\n'
-          '\t-F | --full\tadds a few test cases with more extreme arguments\n'
-          '\t--help\tprint out help\n')
-
 def main():
-    timeToRun = 30
-    timeout = 5
-    strict = False
+    parser = argparse.ArgumentParser(description="Tester for IOS project2 2020/2021")
+    parser.add_argument("-t", "--time", type=float, default=30,
+                        help="how long the test should run in seconds (default: 30)")
+    parser.add_argument("-s", "--strict", action="store_true",
+                        help="add some extra rules, that should not be necessary")
+    parser.add_argument("-T", "--timeout", type=float, default=None,
+                        help="set timeout in seconds for detecting deadlock (default: None - no timeout)")
+    parser.add_argument("-F", "--full", action="store_true", help="adds a few test cases with more extreme arguments")
+
+    args = parser.parse_args()
+
     # list of arguments, that will be tested
     testedArguments = [
         Arguments(20, 5, 0, 50),
@@ -360,50 +361,25 @@ def main():
         Arguments(2, 1, 0, 10)
     ]
 
-    opts = sys.argv[1:]
+    if args.full:
+        testedArguments.extend([
+            Arguments(999, 19, 0, 0),
+            Arguments(100, 10, 10, 200),
+            Arguments(80, 15, 100, 0),
+            Arguments(999, 1, 0, 10),
+            Arguments(2, 19, 0, 100),
+        ])
 
-    optindex = 0
-    while optindex < len(opts):
-        if opts[optindex] == '-F' or opts[optindex] == '--full':
-            testedArguments.extend([
-                Arguments(999, 19, 0, 0),
-                Arguments(100, 10, 10, 200),
-                Arguments(80, 15, 100, 0),
-                Arguments(999, 1, 0, 10),
-                Arguments(2, 19, 0, 100),
-            ])
-
-        elif opts[optindex] == '-t' or opts[optindex] == '--time':
-            optindex += 1
-            timeToRun = float(opts[optindex])
-
-        elif opts[optindex] == '-w' or opts[optindex] == '--wait':
-            timeout = None
-
-        elif opts[optindex] == '-s' or opts[optindex] == '--strict':
-            strict = True
-
-        elif opts[optindex] == '--help':
-            printHelp()
-            return 0
-
-        else:
-            print(f'Bad option `{opts[optindex]}`')
-            printHelp()
-            return 1
-
-        optindex += 1
-
-    cont = Controller(testedArguments=testedArguments, timeToRun=timeToRun)
+    cont = Controller(testedArguments=testedArguments, timeToRun=args.time)
 
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
 
     try:
         while cont.nextRun():
-            runSubject(cont.args, timeout)
+            runSubject(cont.args, args.timeout)
             with open('proj2.out', 'r') as file:
-                analyzeFile(file, cont.args, strict=strict)
+                analyzeFile(file, cont.args, strict=args.strict)
 
     except KeyboardInterrupt:
         print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
