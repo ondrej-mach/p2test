@@ -313,7 +313,7 @@ def analyzeFile(file, args, strict=True):
 
 
 class Controller:
-    def __init__(self, testedArguments=None, timeToRun=30):
+    def __init__(self, testedArguments=None, timeToRun=30, mute:bool=False):
         if testedArguments is None:
             testedArguments = [Arguments(20, 5, 0, 50)]
 
@@ -324,7 +324,9 @@ class Controller:
         # list of arguments, that will be tested
         self.args = Arguments()
 
-    def nextRun(self, mute:bool=False):
+        self.mute = mute
+
+    def nextRun(self):
         finished_part = (perf_counter() - self.startTime) / self.timeToRun
         if finished_part >= 1:
             return False
@@ -334,7 +336,7 @@ class Controller:
         if self.args != self.testedArguments[index]:
             self.args = self.testedArguments[index]
 
-            if not mute:
+            if not self.mute:
                 print(f'Status: {int(finished_part * 100)}% done. {self.testsRun} tests have run. ' +
                       f'Testing: ./proj2 {self.args.NE} {self.args.NR} {self.args.TE} {self.args.TR}')
 
@@ -342,10 +344,10 @@ class Controller:
         return True
 
 def run_tests(testArgs, exec_time, timeout, strict, mute=False):
-    cont = Controller(testedArguments=testArgs, timeToRun=exec_time)
+    cont = Controller(testedArguments=testArgs, timeToRun=exec_time, mute=mute)
 
     try:
-        while cont.nextRun(mute):
+        while cont.nextRun():
             runSubject(cont.args, timeout)
             with open('proj2.out', 'r') as file:
                 analyzeFile(file, cont.args, strict=strict)
