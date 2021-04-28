@@ -10,6 +10,9 @@ from enum import Enum
 from time import perf_counter
 from typing import Union
 import argparse
+import os
+import shutil
+import multiprocessing
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -343,27 +346,98 @@ class Controller:
         self.testsRun += 1
         return True
 
-def run_tests(testArgs, exec_time, timeout, strict, mute=False):
+def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
     cont = Controller(testedArguments=testArgs, timeToRun=exec_time, mute=mute)
 
     try:
         while cont.nextRun():
-            runSubject(cont.args, timeout)
-            with open('proj2.out', 'r') as file:
+            runSubject(cont.args, timeout, workDir)
+            with open(f'{workDir}/proj2.out', 'r') as file:
                 analyzeFile(file, cont.args, strict=strict)
 
     except KeyboardInterrupt:
         print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
-        return False
+        raise
 
     except Exception:
         print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
-        return False
+        raise
 
     print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
-    return True
+
+workerPrintLock = multiprocessing.Lock()
+class Worker(multiprocessing.Process):
+    def __init__(self, args, exec_time, timeout, strict, workdir, id, infinite):
+        super(Worker, self).__init__()
+        self.daemon = True
+
+        self.args = args
+        self.exec_time = exec_time
+        self.timeout = timeout
+        self.strict = strict
+        self.workdir = workdir
+        self.id = id
+        self.infinite = infinite
+
+    def run(self) -> None:
+        workerPrintLock.acquire()
+        print(fmt.GREEN + f'Process {self.id} started' + fmt.NOCOLOR)
+        workerPrintLock.release()
+
+        try:
+            if self.infinite:
+                test_counter = 0
+                while True:
+                    run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+                    test_counter += 1
+
+                    workerPrintLock.acquire()
+                    print(fmt.GREEN + f'Process {self.id} finished successfuly {test_counter} test cycles' + fmt.NOCOLOR)
+                    workerPrintLock.release()
+            else:
+                run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+        except:
+            workerPrintLock.acquire()
+            print(fmt.RED + fmt.CROSS + f' Process {self.id} failed a tests' + fmt.NOCOLOR)
+            workerPrintLock.release()
+            raise
+
+        workerPrintLock.acquire()
+        print(fmt.GREEN + fmt.TICK + f' Thread {self.id} finished successfuly' + fmt.NOCOLOR)
+        workerPrintLock.release()
+
+class MultiprocessController:
+    def __init__(self, args, exec_time, timeout, strict, num_of_threads, infinite):
+        self.args = args
+        self.exec_time = exec_time
+        self.timeout = timeout
+        self.strict = strict
+        self.infinite = infinite
+
+        self.num_of_threads = num_of_threads
+
+        if os.path.exists(f"testing") and os.path.isdir(f"testing"):
+            shutil.rmtree(f"testing", True)
+        os.mkdir(f"testing")
+
+        for i in range(self.num_of_threads):
+            os.mkdir(f"testing/process_{i}")
+            shutil.copy("./proj2", f"testing/process_{i}/proj2")
+
+    def run(self):
+        threads = []
+        for i in range(self.num_of_threads):
+            threads.append(Worker(self.args, self.exec_time, self.timeout, self.strict, f"testing/process_{i}", i, self.infinite))
+            threads[i].start()
+
+        for thread in threads:
+            thread.join()
 
 def main():
+    if not os.path.exists("./proj2") or not os.path.isfile("./proj2"):
+        print(fmt.RED + fmt.CROSS + ' Project binary not found' + fmt.NOCOLOR)
+        return 1
+
     parser = argparse.ArgumentParser(description="Tester for IOS project2 2020/2021")
     parser.add_argument("-t", "--time", type=float, default=30,
                         help="how long the test should run in seconds (default: 30)")
@@ -373,6 +447,8 @@ def main():
                         help="set timeout in seconds for detecting deadlock (default: None - no timeout)")
     parser.add_argument("-F", "--full", action="store_true", help="adds a few test cases with more extreme arguments")
     parser.add_argument("-i", "--infinite", action="store_true", help="runs tests in infinite loop")
+    parser.add_argument("-p", "--processes", type=int, default=1,
+                        help="number of testing processes program will run (default: 1)")
 
     args = parser.parse_args()
 
@@ -398,17 +474,29 @@ def main():
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
 
-    if args.infinite:
-        loop_counter = 1
-        while True:
-            print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
-            if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
-            print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
-            loop_counter += 1
-
+    if args.processes > 1:
+        try:
+            MultiprocessController(testedArguments, args.time, args.timeout, args.strict, args.processes, args.infinite).run()
+            return 0
+        except:
+            return 1
     else:
-        if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
-        return 0
+        if args.infinite:
+            loop_counter = 1
+            while True:
+                print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
+                try:
+                    run_tests(testedArguments, args.time, args.timeout, args.strict)
+                except:
+                    return 1
+                print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
+
+        else:
+            try:
+                run_tests(testedArguments, args.time, args.timeout, args.strict)
+            except:
+                return 1
+            return 0
 
 if __name__ == '__main__':
     sys.exit(main())
