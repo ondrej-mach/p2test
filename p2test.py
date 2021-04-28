@@ -469,6 +469,7 @@ def main():
             Arguments(80, 15, 100, 0),
             Arguments(999, 1, 0, 10),
             Arguments(2, 19, 0, 100),
+            Arguments(999, 19, 50, 200),
         ])
 
     # comment this line if you want to see the python exception
