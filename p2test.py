@@ -39,7 +39,7 @@ extendedArguments = [
     Arguments(80, 15, 100, 0),
     Arguments(999, 1, 0, 10),
     Arguments(2, 19, 0, 100),
-    Arguments(999, 19, 50, 200),
+    Arguments(999, 19, 10, 100),
 ]
 
 def printWithLock(message: str):
