@@ -6,6 +6,8 @@
 
 import subprocess
 import sys
+import random
+import time
 from enum import Enum
 from time import perf_counter
 from typing import Union
@@ -13,6 +15,8 @@ import argparse
 import os
 import shutil
 import multiprocessing
+import threading
+import signal
 
 printLock = multiprocessing.Lock()
 
@@ -98,7 +102,8 @@ class LineCounter:
 
 
 class Environment:
-    def __init__(self, args, strict=True):
+    def __init__(self, args, strict=True, bonus:bool=False):
+        self.bonus = bonus
         self.lineCounter = LineCounter()
         self.santa = Santa()
         self.elves = [Elf(ID=i + 1) for i in range(args.NE)]
@@ -143,6 +148,12 @@ class Environment:
 
         elif actor.startswith('Elf'):
             ID = int(actor.split()[1])
+
+            if self.bonus:
+                if ID > len(self.elves):
+                    for i in range(len(self.elves), ID):
+                        self.elves.append(Elf(i + 1))
+
             self.elfRead(self.elves[ID - 1], action)
 
         elif actor.startswith('RD'):
@@ -304,38 +315,59 @@ class fmt:
     CROSS = '\u2717'
 
 class ProcessHolder:
-    def __init__(self, args, timeout:Union[None, float], workDir="."):
-        self.process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)], cwd=workDir)
+    def __init__(self, args, timeout:Union[None, float], workDir=".", bonus:bool=False):
+        self.terminated = False
+        self.args = args
+
+        self.final_args = ["./proj2"]
+        if bonus: self.final_args.append("-p")
+        self.final_args.extend([str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
+
+        self.process = subprocess.Popen(self.final_args, cwd=workDir)
+        if bonus: threading.Thread(target=self.usr_sig_sender).start()
 
         try:
             self.process.wait(timeout)
+            self.terminated = True
 
         except subprocess.TimeoutExpired:
-            printWithLock(f'The program took longer than {timeout} seconds and has been terminated')
             self.process.terminate()
+            self.terminated = True
+            printWithLock(f'The program took longer than {timeout} seconds and has been terminated')
             raise
 
         except KeyboardInterrupt as e:
-            printWithLock('The testing has been cancelled by the user')
             self.process.terminate()
+            self.terminated = True
+            printWithLock('The testing has been cancelled by the user')
             raise e
 
         if self.process.returncode != 0:
             printWithLock('The tested program returned error')
             raise
 
+    def usr_sig_sender(self):
+        signal_countdown = 3
+        while not self.terminated and signal_countdown > 0:
+            try:
+                time.sleep(random.random() * 0.05 + 0.001)
+                self.process.send_signal(signal.SIGUSR1)
+                signal_countdown -= 1
+            except:
+                pass
+
     # In case something bad happened on destroy of instance terminate process
     def __del__(self):
-        if self.process is not None:
+        if self.process is not None and not self.terminated:
             try:
                 self.process.terminate()
             except:
                 pass
 
 
-def analyzeFile(file, args, strict=True):
+def analyzeFile(file, args, strict=True, bonus:bool=False):
     # initialize the test environment with all the creatures
-    env = Environment(args, strict)
+    env = Environment(args, strict, bonus)
 
     for lineNumber, line in enumerate(file.readlines()):
         try:
@@ -380,14 +412,14 @@ class Controller:
         return True
 
 
-def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
+def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir=".", bonus:bool=False):
     cont = Controller(testedArguments=testArgs, timeToRun=exec_time, mute=mute)
 
     try:
         while cont.nextRun():
-            ProcessHolder(cont.args, timeout, workDir)
+            ProcessHolder(cont.args, timeout, workDir, bonus)
             with open(f'{workDir}/proj2.out', 'r') as file:
-                analyzeFile(file, cont.args, strict=strict)
+                analyzeFile(file, cont.args, strict=strict, bonus=bonus)
 
     except KeyboardInterrupt:
         printWithLock(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
@@ -401,7 +433,7 @@ def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
 
 
 class Worker(multiprocessing.Process):
-    def __init__(self, args, exec_time, timeout, strict, workdir, id, infinite):
+    def __init__(self, args, exec_time, timeout, strict, workdir, id, infinite, bonus:bool=False):
         super(Worker, self).__init__()
         self.daemon = True
 
@@ -412,6 +444,7 @@ class Worker(multiprocessing.Process):
         self.workdir = workdir
         self.id = id
         self.infinite = infinite
+        self.bonus = bonus
 
     def run(self) -> None:
         printWithLock(fmt.GREEN + f'Process {self.id} started' + fmt.NOCOLOR)
@@ -420,12 +453,12 @@ class Worker(multiprocessing.Process):
             if self.infinite:
                 test_counter = 0
                 while True:
-                    run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+                    run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir, self.bonus)
                     test_counter += 1
 
                     printWithLock(fmt.GREEN + f'Process {self.id} finished successfuly {test_counter} test cycles' + fmt.NOCOLOR)
             else:
-                run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+                run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir, self.bonus)
 
         except KeyboardInterrupt:
             printWithLock(fmt.YELLOW + fmt.CROSS + f' Test on process {self.id} has been cancelled by the user' + fmt.NOCOLOR)
@@ -438,12 +471,13 @@ class Worker(multiprocessing.Process):
 
 
 class MultiprocessController:
-    def __init__(self, args, exec_time, timeout, strict, num_of_threads, infinite):
+    def __init__(self, args, exec_time, timeout, strict, num_of_threads, infinite, bonus:bool=False):
         self.args = args
         self.exec_time = exec_time
         self.timeout = timeout
         self.strict = strict
         self.infinite = infinite
+        self.bonus = bonus
 
         self.num_of_threads = num_of_threads
 
@@ -458,7 +492,7 @@ class MultiprocessController:
     def run(self):
         threads = []
         for i in range(self.num_of_threads):
-            threads.append(Worker(self.args, self.exec_time, self.timeout, self.strict, f"testing/process_{i}", i, self.infinite))
+            threads.append(Worker(self.args, self.exec_time, self.timeout, self.strict, f"testing/process_{i}", i, self.infinite, self.bonus))
             threads[i].start()
 
         for thread in threads:
@@ -481,6 +515,7 @@ def main():
     parser.add_argument("-i", "--infinite", action="store_true", help="runs tests in infinite loop")
     parser.add_argument("-p", "--processes", type=int, default=1,
                         help="number of testing processes program will run (default: 1)")
+    parser.add_argument("-b", "--bonus", action="store_true", help="run tests of bonus")
 
     args = parser.parse_args()
 
@@ -492,7 +527,7 @@ def main():
 
     if args.processes > 1:
         try:
-            MultiprocessController(testedArguments, args.time, args.timeout, args.strict, args.processes, args.infinite).run()
+            MultiprocessController(testedArguments, args.time, args.timeout, args.strict, args.processes, args.infinite, args.bonus).run()
             return 0
         except:
             return 1
@@ -502,14 +537,14 @@ def main():
             while True:
                 print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
                 try:
-                    run_tests(testedArguments, args.time, args.timeout, args.strict)
+                    run_tests(testedArguments, args.time, args.timeout, args.strict, bonus=args.bonus)
                 except:
                     return 1
                 print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
 
         else:
             try:
-                run_tests(testedArguments, args.time, args.timeout, args.strict)
+                run_tests(testedArguments, args.time, args.timeout, args.strict, bonus=args.bonus)
             except:
                 return 1
             return 0
