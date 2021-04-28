@@ -10,6 +10,15 @@ from enum import Enum
 from time import perf_counter
 from typing import Union
 import argparse
+import os
+import shutil
+import multiprocessing
+
+printLock = multiprocessing.Lock()
+def printWithLock(message:str):
+    printLock.acquire()
+    print(message)
+    printLock.release()
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -58,7 +67,7 @@ class LineCounter:
 
     def read(self, num):
         if int(num) != self.expectedNumber:
-            print(f'Expected line number {self.expectedNumber}')
+            printWithLock(f'Expected line number {self.expectedNumber}')
             raise
 
         self.expectedNumber += 1
@@ -90,14 +99,14 @@ class Environment:
             try:
                 self.elfEnd(elf)
             except Exception as e:
-                print(f'Elf {elf.ID} ended in wrong state')
+                printWithLock(f'Elf {elf.ID} ended in wrong state')
                 raise e
 
         for rd in self.rds:
             try:
                 self.rdEnd(rd)
             except Exception as e:
-                print(f'Reindeer {rd.ID} ended in wrong state')
+                printWithLock(f'Reindeer {rd.ID} ended in wrong state')
                 raise e
 
     def readLine(self, line):
@@ -118,70 +127,70 @@ class Environment:
             self.rdRead(self.rds[ID-1], action)
 
         else:
-            print(f'Wrong actor identifier: {actor}')
+            printWithLock(f'Wrong actor identifier: {actor}')
             raise
 
     def santaEnd(self, santa):
         if santa.state != Santa.State.GONE:
-            print(f'Santa ended in state {santa.state}')
+            printWithLock(f'Santa ended in state {santa.state}')
             raise
 
     def santaRead(self, santa, text):
         if santa.state == Santa.State.NOT_STARTED:
             if text == 'going to sleep':
                 if self.numElvesToHelp != 0:
-                    print(f'There are still {self.numElvesToHelp} elves in workshop, that didn\'t get help')
+                    printWithLock(f'There are still {self.numElvesToHelp} elves in workshop, that didn\'t get help')
                     raise
                 santa.state = Santa.State.SLEEPING
             else:
-                print(f'Santa in state {santa.state} cannot do {text}')
+                printWithLock(f'Santa in state {santa.state} cannot do {text}')
                 raise
 
         elif santa.state == Santa.State.SLEEPING:
             if text == 'helping elves':
                 if self.numElvesToHelp != 0:
-                    print('Santa did not yet help all the elves in previous helping cycle (or helped more than 3)')
+                    printWithLock('Santa did not yet help all the elves in previous helping cycle (or helped more than 3)')
                     raise
                 if self.strict and self.reindeersHome == self.args.NR:
-                    print('Santa cannot help elves, when all reindeers are home')
+                    printWithLock('Santa cannot help elves, when all reindeers are home')
                     raise
                 self.numElvesToHelp = 3
                 santa.state = Santa.State.HELPING_ELVES
             elif text == 'closing workshop':
                 if self.reindeersHome != self.args.NR:
-                    print('Santa is closing workshop before all reindeers are home')
+                    printWithLock('Santa is closing workshop before all reindeers are home')
                     raise
                 self.workshopOpen = False
                 santa.state = Santa.State.HITCHING_RDS
             else:
-                print(f'Santa in state {santa.state} cannot do {text}')
+                printWithLock(f'Santa in state {santa.state} cannot do {text}')
                 raise
 
         elif santa.state == Santa.State.HELPING_ELVES:
             if text == 'going to sleep':
                 if self.numElvesToHelp != 0:
-                    print(f'Santa went to sleep, he still has {self.numElvesToHelp} elves in his workshop')
+                    printWithLock(f'Santa went to sleep, he still has {self.numElvesToHelp} elves in his workshop')
                     raise
                 santa.state = Santa.State.SLEEPING
             else:
-                print(f'Santa in state {santa.state} cannot do {text}')
+                printWithLock(f'Santa in state {santa.state} cannot do {text}')
                 raise
 
         elif santa.state == Santa.State.HITCHING_RDS:
             if text == 'Christmas started':
                 santa.state = Santa.State.GONE
             else:
-                print(f'Santa in state {santa.state} cannot do {text}')
+                printWithLock(f'Santa in state {santa.state} cannot do {text}')
                 raise
 
         elif santa.state == Santa.State.GONE:
-            print(f'Santa in state {santa.state} cannot do {text}')
+            printWithLock(f'Santa in state {santa.state} cannot do {text}')
             raise
 
 
     def elfEnd(self, elf):
         if elf.state != Elf.State.ON_VACATION:
-            print(f'Elf {elf.ID} ended in state {elf.state}')
+            printWithLock(f'Elf {elf.ID} ended in state {elf.state}')
             raise
 
     def elfRead(self, elf, text):
@@ -189,45 +198,45 @@ class Environment:
             if text == 'started':
                 elf.state = Elf.State.WORKING_ALONE
             else:
-                print(f'Elf in state {elf.state} cannot do {text}')
+                printWithLock(f'Elf in state {elf.state} cannot do {text}')
                 raise
 
         elif elf.state == Elf.State.WORKING_ALONE:
             if text == 'need help':
                 elf.state = Elf.State.AWAITING_HELP
             else:
-                print(f'Elf in state {elf.state} cannot do {text}')
+                printWithLock(f'Elf in state {elf.state} cannot do {text}')
                 raise
 
         elif elf.state == Elf.State.AWAITING_HELP:
             if text == 'get help':
                 if not self.workshopOpen:
-                    print('Elf cannot get help after the workshop is closed')
+                    printWithLock('Elf cannot get help after the workshop is closed')
                     raise
                 if self.santa.state != Santa.State.HELPING_ELVES:
-                    print(f'Santa cannot help an elf in state {self.santa.state}')
+                    printWithLock(f'Santa cannot help an elf in state {self.santa.state}')
                     raise
 
                 self.numElvesToHelp -= 1
                 elf.state = Elf.State.WORKING_ALONE
             elif text == 'taking holidays':
                 if self.workshopOpen:
-                    print('Elf cannot go on vacation before the workshop closes')
+                    printWithLock('Elf cannot go on vacation before the workshop closes')
                     raise
                 elf.state = Elf.State.ON_VACATION
             else:
-                print(f'Elf in state {elf.state} cannot do {text}')
+                printWithLock(f'Elf in state {elf.state} cannot do {text}')
                 raise
 
         elif elf.state == Elf.State.ON_VACATION:
-            print(f'Elf in state {elf.state} cannot do {text}')
+            printWithLock(f'Elf in state {elf.state} cannot do {text}')
             raise
 
 
 
     def rdEnd(self, rd):
         if rd.state != Reindeer.State.HITCHED:
-            print(f'Reindeer {rd.ID} ended in state {rd.state}')
+            printWithLock(f'Reindeer {rd.ID} ended in state {rd.state}')
             raise
 
     def rdRead(self, rd, text):
@@ -235,7 +244,7 @@ class Environment:
             if text == 'rstarted':
                 rd.state = Reindeer.State.ON_VACATION
             else:
-                print(f'Reindeer in state {rd.state} cannot do {text}')
+                printWithLock(f'Reindeer in state {rd.state} cannot do {text}')
                 raise
 
         elif rd.state == Reindeer.State.ON_VACATION:
@@ -243,24 +252,24 @@ class Environment:
                 self.reindeersHome += 1
                 rd.state = Reindeer.State.BACK_HOME
             else:
-                print(f'Reindeer in state {rd.state} cannot do {text}')
+                printWithLock(f'Reindeer in state {rd.state} cannot do {text}')
                 raise
 
         elif rd.state == Reindeer.State.BACK_HOME:
             if text == 'get hitched':
                 if self.workshopOpen:
-                    print('Workshop must be closed, when a reindeer gets hitched')
+                    printWithLock('Workshop must be closed, when a reindeer gets hitched')
                     raise
                 if self.santa.state != Santa.State.HITCHING_RDS:
-                    print(f'Santa cannot hitch a reindeer in state {self.santa.state}')
+                    printWithLock(f'Santa cannot hitch a reindeer in state {self.santa.state}')
                     raise
                 rd.state = Reindeer.State.HITCHED
             else:
-                print(f'Reindeer in state {rd.state} cannot do {text}')
+                printWithLock(f'Reindeer in state {rd.state} cannot do {text}')
                 raise
 
         elif rd.state == Reindeer.State.HITCHED:
-            print(f'Reindeer in state {rd.state} cannot do {text}')
+            printWithLock(f'Reindeer in state {rd.state} cannot do {text}')
             raise
 
 
@@ -275,24 +284,24 @@ class fmt:
     CROSS = '\u2717'
 
 
-def runSubject(args, timeout:Union[None, float]=5):
-    process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
+def runSubject(args, timeout:Union[None, float]=5, workDir="."):
+    process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)], cwd=workDir)
 
     try:
         process.wait(timeout)
 
     except subprocess.TimeoutExpired:
-        print(f'The program took longer than {timeout} seconds and has been terminated')
+        printWithLock(f'The program took longer than {timeout} seconds and has been terminated')
         process.terminate()
         raise
 
     except KeyboardInterrupt as e:
-        print(f'The testing has been cancelled by the user')
+        printWithLock('The testing has been cancelled by the user')
         process.terminate()
         raise e
 
     if process.returncode != 0:
-        print('The tested program returned error')
+        printWithLock('The tested program returned error')
         raise
 
 
@@ -305,8 +314,7 @@ def analyzeFile(file, args, strict=True):
             env.readLine(line)
 
         except Exception as e:
-            print(f'Illegal operation on line {lineNumber}:')
-            print(line)
+            printWithLock(f'Illegal operation on line {lineNumber}:\n{line}')
             raise e
 
     env.end()
@@ -337,33 +345,99 @@ class Controller:
             self.args = self.testedArguments[index]
 
             if not self.mute:
-                print(f'Status: {int(finished_part * 100)}% done. {self.testsRun} tests have run. ' +
-                      f'Testing: ./proj2 {self.args.NE} {self.args.NR} {self.args.TE} {self.args.TR}')
+                printWithLock(f'Status: {int(finished_part * 100)}% done. {self.testsRun} tests have run. ' +
+                              f'Testing: ./proj2 {self.args.NE} {self.args.NR} {self.args.TE} {self.args.TR}')
 
         self.testsRun += 1
         return True
 
-def run_tests(testArgs, exec_time, timeout, strict, mute=False):
+def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
     cont = Controller(testedArguments=testArgs, timeToRun=exec_time, mute=mute)
 
     try:
         while cont.nextRun():
-            runSubject(cont.args, timeout)
-            with open('proj2.out', 'r') as file:
+            runSubject(cont.args, timeout, workDir)
+            with open(f'{workDir}/proj2.out', 'r') as file:
                 analyzeFile(file, cont.args, strict=strict)
 
     except KeyboardInterrupt:
-        print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
-        return False
+        printWithLock(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
+        raise
 
     except Exception:
-        print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
-        return False
+        printWithLock(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
+        raise
 
-    print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
-    return True
+    printWithLock(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
+
+class Worker(multiprocessing.Process):
+    def __init__(self, args, exec_time, timeout, strict, workdir, id, infinite):
+        super(Worker, self).__init__()
+        self.daemon = True
+
+        self.args = args
+        self.exec_time = exec_time
+        self.timeout = timeout
+        self.strict = strict
+        self.workdir = workdir
+        self.id = id
+        self.infinite = infinite
+
+    def run(self) -> None:
+        printWithLock(fmt.GREEN + f'Process {self.id} started' + fmt.NOCOLOR)
+
+        try:
+            if self.infinite:
+                test_counter = 0
+                while True:
+                    run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+                    test_counter += 1
+
+                    printWithLock(fmt.GREEN + f'Process {self.id} finished successfuly {test_counter} test cycles' + fmt.NOCOLOR)
+            else:
+                run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+
+        except KeyboardInterrupt:
+            printWithLock(fmt.YELLOW + fmt.CROSS + f' Test on process {self.id} has been cancelled by the user' + fmt.NOCOLOR)
+            raise
+        except:
+            printWithLock(fmt.RED + fmt.CROSS + f' Process {self.id} failed a tests' + fmt.NOCOLOR)
+            raise
+
+        printWithLock(fmt.GREEN + fmt.TICK + f' Thread {self.id} finished successfuly' + fmt.NOCOLOR)
+
+class MultiprocessController:
+    def __init__(self, args, exec_time, timeout, strict, num_of_threads, infinite):
+        self.args = args
+        self.exec_time = exec_time
+        self.timeout = timeout
+        self.strict = strict
+        self.infinite = infinite
+
+        self.num_of_threads = num_of_threads
+
+        if os.path.exists(f"testing") and os.path.isdir(f"testing"):
+            shutil.rmtree(f"testing", True)
+        os.mkdir(f"testing")
+
+        for i in range(self.num_of_threads):
+            os.mkdir(f"testing/process_{i}")
+            shutil.copy("./proj2", f"testing/process_{i}/proj2")
+
+    def run(self):
+        threads = []
+        for i in range(self.num_of_threads):
+            threads.append(Worker(self.args, self.exec_time, self.timeout, self.strict, f"testing/process_{i}", i, self.infinite))
+            threads[i].start()
+
+        for thread in threads:
+            thread.join()
 
 def main():
+    if not os.path.exists("./proj2") or not os.path.isfile("./proj2"):
+        print(fmt.RED + fmt.CROSS + ' Project binary not found' + fmt.NOCOLOR)
+        return 1
+
     parser = argparse.ArgumentParser(description="Tester for IOS project2 2020/2021")
     parser.add_argument("-t", "--time", type=float, default=30,
                         help="how long the test should run in seconds (default: 30)")
@@ -373,6 +447,8 @@ def main():
                         help="set timeout in seconds for detecting deadlock (default: None - no timeout)")
     parser.add_argument("-F", "--full", action="store_true", help="adds a few test cases with more extreme arguments")
     parser.add_argument("-i", "--infinite", action="store_true", help="runs tests in infinite loop")
+    parser.add_argument("-p", "--processes", type=int, default=1,
+                        help="number of testing processes program will run (default: 1)")
 
     args = parser.parse_args()
 
@@ -398,17 +474,29 @@ def main():
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
 
-    if args.infinite:
-        loop_counter = 1
-        while True:
-            print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
-            if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
-            print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
-            loop_counter += 1
-
+    if args.processes > 1:
+        try:
+            MultiprocessController(testedArguments, args.time, args.timeout, args.strict, args.processes, args.infinite).run()
+            return 0
+        except:
+            return 1
     else:
-        if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
-        return 0
+        if args.infinite:
+            loop_counter = 1
+            while True:
+                print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
+                try:
+                    run_tests(testedArguments, args.time, args.timeout, args.strict)
+                except:
+                    return 1
+                print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
+
+        else:
+            try:
+                run_tests(testedArguments, args.time, args.timeout, args.strict)
+            except:
+                return 1
+            return 0
 
 if __name__ == '__main__':
     sys.exit(main())
