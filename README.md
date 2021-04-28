@@ -33,7 +33,7 @@ If you want strictly no call of Santa helping elves after all reindeers are home
 python3 p2test -s
 ```
 
-If you want to test if your program have any deadlocks then specify timeout time in seconds ```-T``` or ```--timeout```
+If you want to test if your program have any deadlocks then specify timeout time in seconds ```-T``` or ```--timeout``` \
 In default tester will wait for program exit without any timeout.
 ```
 python3 p2test -T 10
@@ -42,6 +42,12 @@ python3 p2test -T 10
 If you want to run infinite test and really want to test stability (no deadlocks) of your program use ```-i``` or ```--infinite``` in combination with  timeout flag
 ```
 python3 p2test -T 10 -i
+```
+
+If you want to run more tests and have strong enough pc then you can change number of processes tests will be run on use ```-p``` or ```--processes``` \
+Its recomended to use number of your cores as maximum number of processes, but you can try to play with it on your own risk.
+```
+python3 p2test -p 8
 ```
 
 More info about parameter of tester with flag ```-h``` or ```--help```

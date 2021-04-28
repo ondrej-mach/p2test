@@ -473,6 +473,12 @@ class Worker(multiprocessing.Process):
                     printLock.release()
             else:
                 run_tests(self.args, self.exec_time, self.timeout, self.strict, True, self.workdir)
+
+        except KeyboardInterrupt:
+            printLock.acquire()
+            print(fmt.YELLOW + fmt.CROSS + f' Test on process {self.id} has been cancelled by the user' + fmt.NOCOLOR)
+            printLock.release()
+            raise
         except:
             printLock.acquire()
             print(fmt.RED + fmt.CROSS + f' Process {self.id} failed a tests' + fmt.NOCOLOR)
