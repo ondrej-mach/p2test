@@ -341,6 +341,26 @@ class Controller:
         self.testsRun += 1
         return True
 
+def run_tests(testArgs, exec_time, timeout, strict, mute=False):
+    cont = Controller(testedArguments=testArgs, timeToRun=exec_time)
+
+    try:
+        while cont.nextRun(mute):
+            runSubject(cont.args, timeout)
+            with open('proj2.out', 'r') as file:
+                analyzeFile(file, cont.args, strict=strict)
+
+    except KeyboardInterrupt:
+        print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
+        return False
+
+    except Exception:
+        print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
+        return False
+
+    print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
+    return True
+
 def main():
     parser = argparse.ArgumentParser(description="Tester for IOS project2 2020/2021")
     parser.add_argument("-t", "--time", type=float, default=30,
@@ -380,44 +400,12 @@ def main():
         loop_counter = 1
         while True:
             print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
-            cont = Controller(testedArguments=testedArguments, timeToRun=args.time)
-
-            try:
-                while cont.nextRun():
-                    runSubject(cont.args, args.timeout)
-                    with open('proj2.out', 'r') as file:
-                        analyzeFile(file, cont.args, strict=args.strict)
-
-            except KeyboardInterrupt:
-                print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
-                return 1
-
-            except Exception:
-                print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
-                return 1
-
-            print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
+            if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
             print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
             loop_counter += 1
 
     else:
-        cont = Controller(testedArguments=testedArguments, timeToRun=args.time)
-
-        try:
-            while cont.nextRun():
-                runSubject(cont.args, args.timeout)
-                with open('proj2.out', 'r') as file:
-                    analyzeFile(file, cont.args, strict=args.strict)
-
-        except KeyboardInterrupt:
-            print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
-            return 1
-
-        except Exception:
-            print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
-            return 1
-
-        print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
+        if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
         return 0
 
 if __name__ == '__main__':
