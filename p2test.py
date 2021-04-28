@@ -15,10 +15,6 @@ import shutil
 import multiprocessing
 
 printLock = multiprocessing.Lock()
-def printWithLock(message:str):
-    printLock.acquire()
-    print(message)
-    printLock.release()
 
 class Arguments:
     def __init__(self, NE=5, NR=5, TE=100, TR=100):
@@ -26,6 +22,31 @@ class Arguments:
         self.NR = NR
         self.TE = TE
         self.TR = TR
+
+
+baseArguments = [
+    Arguments(20, 5, 0, 50),
+    Arguments(3, 5, 0, 0),
+    Arguments(10, 10, 10, 10),
+    Arguments(5, 4, 100, 100),
+    Arguments(8, 2, 50, 0),
+    Arguments(2, 1, 0, 10)
+]
+
+extendedArguments = [
+    Arguments(999, 19, 0, 0),
+    Arguments(100, 10, 10, 200),
+    Arguments(80, 15, 100, 0),
+    Arguments(999, 1, 0, 10),
+    Arguments(2, 19, 0, 100),
+    Arguments(999, 19, 50, 200),
+]
+
+def printWithLock(message: str):
+    printLock.acquire()
+    print(message)
+    printLock.release()
+
 
 class Santa:
     class State(Enum):
@@ -38,6 +59,7 @@ class Santa:
     def __init__(self):
         self.state = self.State.NOT_STARTED
 
+
 class Elf:
     class State(Enum):
         NOT_STARTED = 0
@@ -49,6 +71,7 @@ class Elf:
         self.state = self.State.NOT_STARTED
         self.ID = ID
 
+
 class Reindeer:
     class State(Enum):
         NOT_STARTED = 0
@@ -59,6 +82,7 @@ class Reindeer:
     def __init__(self, ID=0):
         self.state = self.State.NOT_STARTED
         self.ID = ID
+
 
 class LineCounter:
     def __init__(self):
@@ -77,8 +101,8 @@ class Environment:
     def __init__(self, args, strict=True):
         self.lineCounter = LineCounter()
         self.santa = Santa()
-        self.elves = [Elf(ID=i+1) for i in range(args.NE)]
-        self.rds = [Reindeer(ID=i+1) for i in range(args.NR)]
+        self.elves = [Elf(ID=i + 1) for i in range(args.NE)]
+        self.rds = [Reindeer(ID=i + 1) for i in range(args.NR)]
 
         # shared variables for checking
         self.args = args
@@ -86,7 +110,6 @@ class Environment:
         self.numElvesToHelp = 0
         self.reindeersHome = 0
         self.workshopOpen = True
-
 
     def end(self):
         # After all lines are read
@@ -120,11 +143,11 @@ class Environment:
 
         elif actor.startswith('Elf'):
             ID = int(actor.split()[1])
-            self.elfRead(self.elves[ID-1], action)
+            self.elfRead(self.elves[ID - 1], action)
 
         elif actor.startswith('RD'):
             ID = int(actor.split()[1])
-            self.rdRead(self.rds[ID-1], action)
+            self.rdRead(self.rds[ID - 1], action)
 
         else:
             printWithLock(f'Wrong actor identifier: {actor}')
@@ -187,7 +210,6 @@ class Environment:
             printWithLock(f'Santa in state {santa.state} cannot do {text}')
             raise
 
-
     def elfEnd(self, elf):
         if elf.state != Elf.State.ON_VACATION:
             printWithLock(f'Elf {elf.ID} ended in state {elf.state}')
@@ -231,8 +253,6 @@ class Environment:
         elif elf.state == Elf.State.ON_VACATION:
             printWithLock(f'Elf in state {elf.state} cannot do {text}')
             raise
-
-
 
     def rdEnd(self, rd):
         if rd.state != Reindeer.State.HITCHED:
@@ -284,7 +304,7 @@ class fmt:
     CROSS = '\u2717'
 
 
-def runSubject(args, timeout:Union[None, float]=5, workDir="."):
+def runSubject(args, timeout: Union[None, float] = 5, workDir="."):
     process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)], cwd=workDir)
 
     try:
@@ -321,7 +341,7 @@ def analyzeFile(file, args, strict=True):
 
 
 class Controller:
-    def __init__(self, testedArguments=None, timeToRun=30, mute:bool=False):
+    def __init__(self, testedArguments=None, timeToRun=30, mute: bool = False):
         if testedArguments is None:
             testedArguments = [Arguments(20, 5, 0, 50)]
 
@@ -351,6 +371,7 @@ class Controller:
         self.testsRun += 1
         return True
 
+
 def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
     cont = Controller(testedArguments=testArgs, timeToRun=exec_time, mute=mute)
 
@@ -369,6 +390,7 @@ def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
         raise
 
     printWithLock(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
+
 
 class Worker(multiprocessing.Process):
     def __init__(self, args, exec_time, timeout, strict, workdir, id, infinite):
@@ -406,6 +428,7 @@ class Worker(multiprocessing.Process):
 
         printWithLock(fmt.GREEN + fmt.TICK + f' Thread {self.id} finished successfuly' + fmt.NOCOLOR)
 
+
 class MultiprocessController:
     def __init__(self, args, exec_time, timeout, strict, num_of_threads, infinite):
         self.args = args
@@ -433,6 +456,7 @@ class MultiprocessController:
         for thread in threads:
             thread.join()
 
+
 def main():
     if not os.path.exists("./proj2") or not os.path.isfile("./proj2"):
         print(fmt.RED + fmt.CROSS + ' Project binary not found' + fmt.NOCOLOR)
@@ -452,25 +476,8 @@ def main():
 
     args = parser.parse_args()
 
-    # list of arguments, that will be tested
-    testedArguments = [
-        Arguments(20, 5, 0, 50),
-        Arguments(3, 5, 0, 0),
-        Arguments(10, 10, 10, 10),
-        Arguments(5, 4, 100, 100),
-        Arguments(8, 2, 50, 0),
-        Arguments(2, 1, 0, 10)
-    ]
-
-    if args.full:
-        testedArguments.extend([
-            Arguments(999, 19, 0, 0),
-            Arguments(100, 10, 10, 200),
-            Arguments(80, 15, 100, 0),
-            Arguments(999, 1, 0, 10),
-            Arguments(2, 19, 0, 100),
-            Arguments(999, 19, 50, 200),
-        ])
+    testedArguments = baseArguments
+    if args.full: testedArguments.extend(extendedArguments)
 
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
@@ -498,6 +505,7 @@ def main():
             except:
                 return 1
             return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())
