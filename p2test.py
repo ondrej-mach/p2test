@@ -303,26 +303,34 @@ class fmt:
     TICK = '\u2713'
     CROSS = '\u2717'
 
+class ProcessHolder:
+    def __init__(self, args, timeout:Union[None, float], workDir="."):
+        self.process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)], cwd=workDir)
 
-def runSubject(args, timeout: Union[None, float] = 5, workDir="."):
-    process = subprocess.Popen(["./proj2", str(args.NE), str(args.NR), str(args.TE), str(args.TR)], cwd=workDir)
+        try:
+            self.process.wait(timeout)
 
-    try:
-        process.wait(timeout)
+        except subprocess.TimeoutExpired:
+            printWithLock(f'The program took longer than {timeout} seconds and has been terminated')
+            self.process.terminate()
+            raise
 
-    except subprocess.TimeoutExpired:
-        printWithLock(f'The program took longer than {timeout} seconds and has been terminated')
-        process.terminate()
-        raise
+        except KeyboardInterrupt as e:
+            printWithLock('The testing has been cancelled by the user')
+            self.process.terminate()
+            raise e
 
-    except KeyboardInterrupt as e:
-        printWithLock('The testing has been cancelled by the user')
-        process.terminate()
-        raise e
+        if self.process.returncode != 0:
+            printWithLock('The tested program returned error')
+            raise
 
-    if process.returncode != 0:
-        printWithLock('The tested program returned error')
-        raise
+    # In case something bad happened on destroy of instance terminate process
+    def __del__(self):
+        if self.process is not None:
+            try:
+                self.process.terminate()
+            except:
+                pass
 
 
 def analyzeFile(file, args, strict=True):
@@ -341,7 +349,7 @@ def analyzeFile(file, args, strict=True):
 
 
 class Controller:
-    def __init__(self, testedArguments=None, timeToRun=30, mute: bool = False):
+    def __init__(self, testedArguments=None, timeToRun=30, mute:bool=False):
         if testedArguments is None:
             testedArguments = [Arguments(20, 5, 0, 50)]
 
@@ -377,7 +385,7 @@ def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir="."):
 
     try:
         while cont.nextRun():
-            runSubject(cont.args, timeout, workDir)
+            ProcessHolder(cont.args, timeout, workDir)
             with open(f'{workDir}/proj2.out', 'r') as file:
                 analyzeFile(file, cont.args, strict=strict)
 
