@@ -51,6 +51,13 @@ Its recomended to use number of your cores as maximum number of processes, but y
 python3 p2test -p 8
 ```
 
+If you want to test bonus for this project use ```-b``` or ```--bonus```. This will test if new spawned elves are handled correctly and program don't crash. It does not test QUIT signal, you will need to test it yourself. \
+Be careful, with this test enable number of elves is not tested because program can dynamicaly change number of them in runtime. \ 
+Use this with a lot of testing processes or full flag on your own risk.
+```
+python3 p2test -b
+```
+
 More info about parameter of tester with flag ```-h``` or ```--help```
 
 ### My tests fail
