@@ -320,7 +320,7 @@ class ProcessHolder:
         self.args = args
 
         self.final_args = ["./proj2"]
-        if bonus: self.final_args.append("-p")
+        if bonus: self.final_args.append("-b")
         self.final_args.extend([str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
 
         self.process = subprocess.Popen(self.final_args, cwd=workDir)
