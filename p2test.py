@@ -467,7 +467,7 @@ class Worker(multiprocessing.Process):
             printWithLock(fmt.RED + fmt.CROSS + f' Process {self.id} failed a tests' + fmt.NOCOLOR)
             raise
 
-        printWithLock(fmt.GREEN + fmt.TICK + f' Thread {self.id} finished successfuly' + fmt.NOCOLOR)
+        printWithLock(fmt.GREEN + fmt.TICK + f' Process {self.id} finished successfuly' + fmt.NOCOLOR)
 
 
 class MultiprocessController:
