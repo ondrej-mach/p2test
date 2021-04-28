@@ -313,7 +313,7 @@ def analyzeFile(file, args, strict=True):
 
 
 class Controller:
-    def __init__(self, testedArguments=None, timeToRun=30):
+    def __init__(self, testedArguments=None, timeToRun=30, mute:bool=False):
         if testedArguments is None:
             testedArguments = [Arguments(20, 5, 0, 50)]
 
@@ -324,6 +324,8 @@ class Controller:
         # list of arguments, that will be tested
         self.args = Arguments()
 
+        self.mute = mute
+
     def nextRun(self):
         finished_part = (perf_counter() - self.startTime) / self.timeToRun
         if finished_part >= 1:
@@ -333,11 +335,33 @@ class Controller:
 
         if self.args != self.testedArguments[index]:
             self.args = self.testedArguments[index]
-            print(f'Status: {int(finished_part * 100)}% done. {self.testsRun} tests have run. ' +
-                  f'Testing: ./proj2 {self.args.NE} {self.args.NR} {self.args.TE} {self.args.TR}')
+
+            if not self.mute:
+                print(f'Status: {int(finished_part * 100)}% done. {self.testsRun} tests have run. ' +
+                      f'Testing: ./proj2 {self.args.NE} {self.args.NR} {self.args.TE} {self.args.TR}')
 
         self.testsRun += 1
         return True
+
+def run_tests(testArgs, exec_time, timeout, strict, mute=False):
+    cont = Controller(testedArguments=testArgs, timeToRun=exec_time, mute=mute)
+
+    try:
+        while cont.nextRun():
+            runSubject(cont.args, timeout)
+            with open('proj2.out', 'r') as file:
+                analyzeFile(file, cont.args, strict=strict)
+
+    except KeyboardInterrupt:
+        print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
+        return False
+
+    except Exception:
+        print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
+        return False
+
+    print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
+    return True
 
 def main():
     parser = argparse.ArgumentParser(description="Tester for IOS project2 2020/2021")
@@ -348,6 +372,7 @@ def main():
     parser.add_argument("-T", "--timeout", type=float, default=None,
                         help="set timeout in seconds for detecting deadlock (default: None - no timeout)")
     parser.add_argument("-F", "--full", action="store_true", help="adds a few test cases with more extreme arguments")
+    parser.add_argument("-i", "--infinite", action="store_true", help="runs tests in infinite loop")
 
     args = parser.parse_args()
 
@@ -370,27 +395,20 @@ def main():
             Arguments(2, 19, 0, 100),
         ])
 
-    cont = Controller(testedArguments=testedArguments, timeToRun=args.time)
-
     # comment this line if you want to see the python exception
     sys.stderr = open('/dev/null', 'w')
 
-    try:
-        while cont.nextRun():
-            runSubject(cont.args, args.timeout)
-            with open('proj2.out', 'r') as file:
-                analyzeFile(file, cont.args, strict=args.strict)
+    if args.infinite:
+        loop_counter = 1
+        while True:
+            print(fmt.GREEN + f"Starting test loop {loop_counter}" + fmt.NOCOLOR)
+            if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
+            print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
+            loop_counter += 1
 
-    except KeyboardInterrupt:
-        print(fmt.YELLOW + fmt.CROSS + ' Test has been cancelled by the user' + fmt.NOCOLOR)
-        return 1
-
-    except Exception:
-        print(fmt.RED + fmt.CROSS + ' Tests failed' + fmt.NOCOLOR)
-        return 1
-
-    print(fmt.GREEN + fmt.TICK + ' Tests passed' + fmt.NOCOLOR)
-    return 0
+    else:
+        if not run_tests(testedArguments, args.time, args.timeout, args.strict): return 1
+        return 0
 
 if __name__ == '__main__':
     sys.exit(main())
