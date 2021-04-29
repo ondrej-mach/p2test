@@ -315,26 +315,30 @@ class fmt:
     CROSS = '\u2717'
 
 class ProcessHolder:
-    def __init__(self, args, timeout:Union[None, float], workDir=".", bonus:bool=False):
+    def __init__(self, args, timeout:Union[None, float, int]=None, workDir=".", bonus:bool=False):
         self.terminated = False
         self.args = args
+        self.workDir = workDir
+        self.timeout = timeout
+        self.bonus = bonus
+        self.process = None
 
         self.final_args = ["./proj2"]
         if bonus: self.final_args.append("-b")
         self.final_args.extend([str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
 
-        self.process = subprocess.Popen(self.final_args, cwd=workDir, stderr=subprocess.PIPE)
-        _, err = self.process.communicate()
-        if bonus: threading.Thread(target=self.usr_sig_sender).start()
+    def run(self):
+        self.process = subprocess.Popen(self.final_args, cwd=self.workDir, stderr=subprocess.PIPE)
+        if self.bonus: threading.Thread(target=self.usr_sig_sender).start()
 
         try:
-            self.process.wait(timeout)
+            _, err = self.process.communicate(timeout=self.timeout)
             self.terminated = True
 
         except subprocess.TimeoutExpired:
             self.process.terminate()
             self.terminated = True
-            printWithLock(f'The program took longer than {timeout} seconds and has been terminated')
+            printWithLock(f'The program took longer than {self.timeout} seconds and has been terminated')
             raise
 
         except KeyboardInterrupt as e:
@@ -418,7 +422,7 @@ def run_tests(testArgs, exec_time, timeout, strict, mute=False, workDir=".", bon
 
     try:
         while cont.nextRun():
-            ProcessHolder(cont.args, timeout, workDir, bonus)
+            ProcessHolder(cont.args, timeout=timeout, workDir=workDir, bonus=bonus).run()
             with open(f'{workDir}/proj2.out', 'r') as file:
                 analyzeFile(file, cont.args, strict=strict, bonus=bonus)
 
