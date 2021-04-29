@@ -323,7 +323,8 @@ class ProcessHolder:
         if bonus: self.final_args.append("-b")
         self.final_args.extend([str(args.NE), str(args.NR), str(args.TE), str(args.TR)])
 
-        self.process = subprocess.Popen(self.final_args, cwd=workDir)
+        self.process = subprocess.Popen(self.final_args, cwd=workDir, stderr=subprocess.PIPE)
+        _, err = self.process.communicate()
         if bonus: threading.Thread(target=self.usr_sig_sender).start()
 
         try:
@@ -343,7 +344,7 @@ class ProcessHolder:
             raise e
 
         if self.process.returncode != 0:
-            printWithLock('The tested program returned error')
+            printWithLock(f'The tested program returned error\nError output: {err.decode("utf-8")[:-1]}')
             raise
 
     def usr_sig_sender(self):
