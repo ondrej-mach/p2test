@@ -546,6 +546,7 @@ def main():
                 except:
                     return 1
                 print(fmt.GREEN + f"Test loop {loop_counter} finished\n" + fmt.NOCOLOR)
+                loop_counter += 1
 
         else:
             try:
