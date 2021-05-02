@@ -329,7 +329,11 @@ class ProcessHolder:
 
     def run(self):
         self.process = subprocess.Popen(self.final_args, cwd=self.workDir, stderr=subprocess.PIPE)
-        if self.bonus: threading.Thread(target=self.usr_sig_sender).start()
+
+        bonus_thread = None
+        if self.bonus:
+            bonus_thread = threading.Thread(target=self.usr_sig_sender)
+            bonus_thread.start()
 
         try:
             _, err = self.process.communicate(timeout=self.timeout)
@@ -339,17 +343,22 @@ class ProcessHolder:
             self.process.terminate()
             self.terminated = True
             printWithLock(f'The program took longer than {self.timeout} seconds and has been terminated')
+            if bonus_thread: bonus_thread.join()
             raise
 
         except KeyboardInterrupt as e:
             self.process.terminate()
             self.terminated = True
             printWithLock('The testing has been cancelled by the user')
+            if bonus_thread: bonus_thread.join()
             raise e
 
         if self.process.returncode != 0:
             printWithLock(f'The tested program returned error\nError output: {err.decode("utf-8")[:-1]}')
+            if bonus_thread: bonus_thread.join()
             raise
+
+        if bonus_thread: bonus_thread.join()
 
     def usr_sig_sender(self):
         signal_countdown = 3
